@@ -8,7 +8,7 @@ import Footer from "./components/footer/footer";
 import { AiStateProvider } from "./context/ai-state-context";
 import { Live2DConfigProvider } from "./context/live2d-config-context";
 import { SubtitleProvider } from "./context/subtitle-context";
-import { BgUrlProvider } from "./context/bgurl-context";
+import { BgUrlProvider, useBgUrl, TRANSPARENT_BG_VALUE } from "./context/bgurl-context";
 import { layoutStyles } from "./layout";
 import WebSocketHandler from "./services/websocket-handler";
 import { CameraProvider } from "./context/camera-context";
@@ -36,6 +36,8 @@ function AppContent(): JSX.Element {
   const { mode } = useMode();
   const isElectron = window.api !== undefined;
   const live2dContainerRef = useRef<HTMLDivElement>(null);
+  const { backgroundUrl } = useBgUrl();
+  const isTransparentBg = backgroundUrl === TRANSPARENT_BG_VALUE;
 
   useEffect(() => {
     const handleResize = () => {
@@ -109,7 +111,7 @@ function AppContent(): JSX.Element {
         <>
           {isElectron && <TitleBar />}
           {/* Apply styles by spreading */}
-          <Flex {...layoutStyles.appContainer}>
+          <Flex {...layoutStyles.appContainer} {...(isTransparentBg && { bg: 'transparent' })}>
             <Box
               {...layoutStyles.sidebar}
               {...(!showSidebar && { width: "24px" })}

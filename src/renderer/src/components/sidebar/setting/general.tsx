@@ -7,6 +7,7 @@ import { useConfig } from "@/context/character-config-context";
 import { useGeneralSettings } from "@/hooks/sidebar/setting/use-general-settings";
 import { useWebSocket } from "@/context/websocket-context";
 import { SelectField, SwitchField, InputField } from "./common";
+import { TRANSPARENT_BG_VALUE } from "@/context/bgurl-context";
 
 interface GeneralProps {
   onSave?: (callback: () => void) => () => void;
@@ -15,6 +16,7 @@ interface GeneralProps {
 
 // Data collection definition
 const useCollections = () => {
+  const { t } = useTranslation();
   const { backgroundFiles } = useBgUrl() || {};
   const { configFiles } = useConfig();
 
@@ -26,11 +28,13 @@ const useCollections = () => {
   });
 
   const backgrounds = createListCollection({
-    items:
-      backgroundFiles?.map((filename) => ({
+    items: [
+      { label: t("settings.general.transparentBg"), value: TRANSPARENT_BG_VALUE },
+      ...(backgroundFiles?.map((filename) => ({
         label: String(filename),
         value: `/bg/${filename}`,
-      })) || [],
+      })) || []),
+    ],
   });
 
   const characterPresets = createListCollection({

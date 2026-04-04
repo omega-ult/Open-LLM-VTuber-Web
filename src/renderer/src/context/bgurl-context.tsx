@@ -5,6 +5,11 @@ import { useLocalStorage } from '@/hooks/utils/use-local-storage';
 import { useWebSocket } from './websocket-context';
 
 /**
+ * Special value representing transparent (no) background
+ */
+export const TRANSPARENT_BG_VALUE = 'transparent';
+
+/**
  * Background file interface
  * @interface BackgroundFile
  */

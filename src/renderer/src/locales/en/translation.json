@@ -20,6 +20,7 @@
       "useCameraBackground": "Use Camera Background",
       "showSubtitle": "Show Subtitle",
       "backgroundImage": "Background Image",
+      "transparentBg": "Transparent",
       "customBgUrlPlaceholder": "Enter image URL",
       "customBgUrl": "Or enter a custom background URL",
       "characterPreset": "Character Preset",

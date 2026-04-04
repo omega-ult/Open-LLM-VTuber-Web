@@ -2,6 +2,7 @@
 /* eslint-disable no-use-before-define */
 import { useState, useEffect } from 'react';
 import { BgUrlContextState } from '@/context/bgurl-context';
+import { TRANSPARENT_BG_VALUE } from '@/context/bgurl-context';
 import { defaultBaseUrl, defaultWsUrl } from '@/context/websocket-context';
 import { useSubtitle } from '@/context/subtitle-context';
 import { useCamera } from '@/context/camera-context';
@@ -81,6 +82,7 @@ export const useGeneralSettings = ({
 
   const getCurrentBgKey = (): string[] => {
     if (!bgUrlContext?.backgroundUrl) return [];
+    if (bgUrlContext.backgroundUrl === TRANSPARENT_BG_VALUE) return [TRANSPARENT_BG_VALUE];
     const currentBgUrl = bgUrlContext.backgroundUrl;
     const path = currentBgUrl.replace(baseUrl, '');
     return path.startsWith('/bg/') ? [path] : [];
@@ -117,8 +119,12 @@ export const useGeneralSettings = ({
 
     const newBgUrl = settings.customBgUrl || settings.selectedBgUrl[0];
     if (newBgUrl && bgUrlContext) {
-      const fullUrl = newBgUrl.startsWith('http') ? newBgUrl : `${baseUrl}${newBgUrl}`;
-      bgUrlContext.setBackgroundUrl(fullUrl);
+      if (newBgUrl === TRANSPARENT_BG_VALUE) {
+        bgUrlContext.setBackgroundUrl(TRANSPARENT_BG_VALUE);
+      } else {
+        const fullUrl = newBgUrl.startsWith('http') ? newBgUrl : `${baseUrl}${newBgUrl}`;
+        bgUrlContext.setBackgroundUrl(fullUrl);
+      }
     }
 
     onWsUrlChange(settings.wsUrl);

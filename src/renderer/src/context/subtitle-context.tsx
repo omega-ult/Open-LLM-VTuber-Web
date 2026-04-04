@@ -43,7 +43,7 @@ export const SubtitleContext = createContext<SubtitleState | null>(null);
 export const SubtitleProvider = memo(({ children }: { children: React.ReactNode }) => {
   // State management
   const [subtitleText, setSubtitleText] = useState<string>(DEFAULT_SUBTITLE.text);
-  const [showSubtitle, setShowSubtitle] = useState<boolean>(true);
+  const [showSubtitle, setShowSubtitle] = useState<boolean>(false);
 
   // Memoized context value
   const contextValue = useMemo(
