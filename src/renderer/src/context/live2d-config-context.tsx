@@ -1,5 +1,5 @@
 import {
-  createContext, useContext, useState, useMemo,
+  createContext, useContext, useState, useMemo, useEffect, useRef,
 } from 'react';
 import { useLocalStorage } from '@/hooks/utils/use-local-storage';
 import { useConfig } from '@/context/character-config-context';
@@ -119,6 +119,22 @@ export function Live2DConfigProvider({ children }: { children: React.ReactNode }
 
   // const [modelInfo, setModelInfoState] = useState<ModelInfo | undefined>(DEFAULT_CONFIG.modelInfo);
 
+  // Override kScale with --scale startup arg (applied at model load time)
+  const scaleOverrideRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (window.api) {
+      (window.api as any).getStartupArgs?.().then((args: { scale?: number }) => {
+        if (args?.scale) {
+          scaleOverrideRef.current = args.scale;
+          // Apply immediately if model is already loaded
+          if (modelInfo) {
+            setModelInfoState({ ...modelInfo, kScale: args.scale });
+          }
+        }
+      });
+    }
+  }, [!!modelInfo]);
+
   const setModelInfo = (info: ModelInfo | undefined) => {
     if (!info?.url) {
       setModelInfoState(undefined);
@@ -126,7 +142,11 @@ export function Live2DConfigProvider({ children }: { children: React.ReactNode }
     }
 
     // Always use the scale defined in the incoming info object (from config)
-    const finalScale = Number(info.kScale || 0.5) * 2;
+    let finalScale = Number(info.kScale || 0.5) * 2;
+    // Apply startup --scale override if available
+    if (scaleOverrideRef.current !== null) {
+      finalScale = scaleOverrideRef.current;
+    }
     console.log("Setting model info with default scale:", finalScale);
 
     setModelInfoState({

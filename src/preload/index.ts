@@ -66,6 +66,7 @@ const api = {
   updateConfigFiles: (files: ConfigFile[]) => {
     ipcRenderer.send('update-config-files', files);
   },
+  getStartupArgs: () => ipcRenderer.invoke('get-startup-args'),
 };
 
 if (process.contextIsolated) {

@@ -112,6 +112,48 @@ export function VADProvider({ children }: { children: React.ReactNode }) {
 
   // Persistent state management
   const [micOn, setMicOn] = useLocalStorage('micOn', DEFAULT_VAD_STATE.micOn);
+  const noMicOverrideRef = useRef<boolean | null>(null);
+
+  // Read --no-mic startup arg
+  useEffect(() => {
+    if (window.api) {
+      (window.api as any).getStartupArgs?.().then((args: { noMic?: boolean }) => {
+        if (args?.noMic) {
+          noMicOverrideRef.current = true;
+          setMicOn(false);
+        }
+      });
+    }
+  }, []);
+
+  // Wrap startMic to respect --no-mic
+  const startMicOriginal = useCallback(async () => {
+    try {
+      if (!vadRef.current) {
+        console.log('Initializing VAD');
+        await initVAD();
+      } else {
+        console.log('Starting VAD');
+        vadRef.current.start();
+      }
+      setMicOn(true);
+    } catch (error) {
+      console.error('Failed to start VAD:', error);
+      toaster.create({
+        title: `${t('error.failedStartVAD')}: ${error}`,
+        type: 'error',
+        duration: 2000,
+      });
+    }
+  }, [t]);
+
+  const startMic = useCallback(async () => {
+    if (noMicOverrideRef.current) {
+      console.log('--no-mic active: refusing to start mic');
+      return;
+    }
+    await startMicOriginal();
+  }, [startMicOriginal]);
   const autoStopMicRef = useRef(true);
   const [autoStopMic, setAutoStopMicState] = useLocalStorage(
     'autoStopMic',
@@ -294,29 +336,6 @@ export function VADProvider({ children }: { children: React.ReactNode }) {
     vadRef.current = newVAD;
     newVAD.start();
   };
-
-  /**
-   * Start microphone and VAD processing
-   */
-  const startMic = useCallback(async () => {
-    try {
-      if (!vadRef.current) {
-        console.log('Initializing VAD');
-        await initVAD();
-      } else {
-        console.log('Starting VAD');
-        vadRef.current.start();
-      }
-      setMicOn(true);
-    } catch (error) {
-      console.error('Failed to start VAD:', error);
-      toaster.create({
-        title: `${t('error.failedStartVAD')}: ${error}`,
-        type: 'error',
-        duration: 2000,
-      });
-    }
-  }, [t]);
 
   /**
    * Stop microphone and VAD processing

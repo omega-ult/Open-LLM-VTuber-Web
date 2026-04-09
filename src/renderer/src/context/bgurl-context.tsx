@@ -1,5 +1,5 @@
 import {
-  createContext, useMemo, useContext, useState, useCallback,
+  createContext, useMemo, useContext, useState, useCallback, useEffect,
 } from 'react';
 import { useLocalStorage } from '@/hooks/utils/use-local-storage';
 import { useWebSocket } from './websocket-context';
@@ -54,6 +54,17 @@ export function BgUrlProvider({ children }: { children: React.ReactNode }) {
     'backgroundUrl',
     DEFAULT_BACKGROUND,
   );
+
+  // Override with --transparent startup arg
+  useEffect(() => {
+    if (window.api) {
+      (window.api as any).getStartupArgs?.().then((args: { transparent?: boolean }) => {
+        if (args?.transparent) {
+          setBackgroundUrl(TRANSPARENT_BG_VALUE);
+        }
+      });
+    }
+  }, []);
 
   // State for background files list
   const [backgroundFiles, setBackgroundFiles] = useState<BackgroundFile[]>([]);

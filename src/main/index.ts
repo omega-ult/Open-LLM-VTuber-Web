@@ -8,6 +8,49 @@ let windowManager: WindowManager;
 let menuManager: MenuManager;
 let isQuitting = false;
 
+interface StartupArgs {
+  pet: boolean;
+  noMic: boolean;
+  ws?: string;
+  transparent: boolean;
+  scale?: number;
+}
+
+function parseArgs(): StartupArgs {
+  // electron-vite passes extra args via ELECTRON_CLI_ARGS env var
+  let args: string[] = [];
+  if (process.env.ELECTRON_CLI_ARGS) {
+    try {
+      args = JSON.parse(process.env.ELECTRON_CLI_ARGS);
+    } catch {
+      args = [];
+    }
+  }
+  // Also check process.argv for direct electron launch
+  args = [...args, ...process.argv.slice(2)];
+
+  const result: StartupArgs = {
+    pet: false,
+    noMic: false,
+    transparent: false,
+  };
+
+  for (const arg of args) {
+    if (arg === '--pet') result.pet = true;
+    else if (arg === '--no-mic') result.noMic = true;
+    else if (arg === '--transparent') result.transparent = true;
+    else if (arg.startsWith('--ws=')) result.ws = arg.slice(5);
+    else if (arg.startsWith('--scale=')) {
+      const val = parseFloat(arg.slice(8));
+      if (!Number.isNaN(val) && val > 0) result.scale = val;
+    }
+  }
+
+  return result;
+}
+
+const startupArgs = parseArgs();
+
 function setupIPC(): void {
   ipcMain.handle("get-platform", () => process.platform);
 
@@ -71,6 +114,8 @@ function setupIPC(): void {
     const sources = await desktopCapturer.getSources({ types: ['screen'] });
     return sources[0].id;
   });
+
+  ipcMain.handle('get-startup-args', () => startupArgs);
 }
 
 app.whenReady().then(() => {
@@ -87,6 +132,13 @@ app.whenReady().then(() => {
     },
   });
   menuManager.createTray();
+
+  window.on("ready-to-show", () => {
+    if (startupArgs.pet) {
+      menuManager.setMode('pet');
+      windowManager.setWindowMode('pet');
+    }
+  });
 
   window.on("close", (event) => {
     if (!isQuitting) {

@@ -1,5 +1,5 @@
 /* eslint-disable react/jsx-no-constructed-context-values */
-import React, { useContext, useCallback } from 'react';
+import React, { useContext, useCallback, useState, useEffect } from 'react';
 import { wsService } from '@/services/websocket-service';
 import { useLocalStorage } from '@/hooks/utils/use-local-storage';
 
@@ -50,7 +50,30 @@ export const defaultBaseUrl = DEFAULT_BASE_URL;
 export function WebSocketProvider({ children }: { children: React.ReactNode }) {
   const [wsUrl, setWsUrl] = useLocalStorage('wsUrl', DEFAULT_WS_URL);
   const [baseUrl, setBaseUrl] = useLocalStorage('baseUrl', DEFAULT_BASE_URL);
+  const [startupOverride, setStartupOverride] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (window.api) {
+      (window.api as any).getStartupArgs?.().then((args: { ws?: string }) => {
+        if (args?.ws) {
+          setStartupOverride(args.ws);
+          setWsUrl(args.ws);
+          wsService.connect(args.ws);
+          // Derive base URL from ws URL
+          const base = args.ws.replace('ws://', 'http://').replace('wss://', 'https://').replace('/client-ws', '');
+          setBaseUrl(base);
+        }
+      });
+    }
+  }, []);
+
+  const effectiveWsUrl = startupOverride || wsUrl;
+  const effectiveBaseUrl = startupOverride
+    ? startupOverride.replace('ws://', 'http://').replace('wss://', 'https://').replace('/client-ws', '')
+    : baseUrl;
+
   const handleSetWsUrl = useCallback((url: string) => {
+    setStartupOverride(null);
     setWsUrl(url);
     wsService.connect(url);
   }, [setWsUrl]);
@@ -58,10 +81,10 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
   const value = {
     sendMessage: wsService.sendMessage.bind(wsService),
     wsState: 'CLOSED',
-    reconnect: () => wsService.connect(wsUrl),
-    wsUrl,
+    reconnect: () => wsService.connect(effectiveWsUrl),
+    wsUrl: effectiveWsUrl,
     setWsUrl: handleSetWsUrl,
-    baseUrl,
+    baseUrl: effectiveBaseUrl,
     setBaseUrl,
   };
 
