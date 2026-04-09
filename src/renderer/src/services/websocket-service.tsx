@@ -46,6 +46,7 @@ export interface Actions {
   expressions?: string[] | number [];
   pictures?: string[];
   sounds?: string[];
+  motion?: string;
 }
 
 export interface MessageEvent {

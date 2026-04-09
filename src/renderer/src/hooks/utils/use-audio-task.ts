@@ -11,6 +11,7 @@ import { audioManager } from '@/utils/audio-manager';
 import { toaster } from '@/components/ui/toaster';
 import { useWebSocket } from '@/context/websocket-context';
 import { DisplayText } from '@/services/websocket-service';
+import { useLive2DConfig } from '@/context/live2d-config-context';
 import { useLive2DExpression } from '@/hooks/canvas/use-live2d-expression';
 import * as LAppDefine from '../../../WebSDK/src/lappdefine';
 
@@ -23,6 +24,7 @@ interface AudioTaskOptions {
   sliceLength: number
   displayText?: DisplayText | null
   expressions?: string[] | number[] | null
+  motion?: string | null
   speaker_uid?: string
   forwarded?: boolean
 }
@@ -37,6 +39,7 @@ export const useAudioTask = () => {
   const { appendResponse, appendAIMessage } = useChatHistory();
   const { sendMessage } = useWebSocket();
   const { setExpression } = useLive2DExpression();
+  const { modelInfo } = useLive2DConfig();
 
   // State refs to avoid stale closures
   const stateRef = useRef({
@@ -80,7 +83,7 @@ export const useAudioTask = () => {
       return;
     }
 
-    const { audioBase64, displayText, expressions, forwarded } = options;
+    const { audioBase64, displayText, expressions, motion, forwarded } = options;
 
     // Update display text
     if (displayText) {
@@ -135,13 +138,28 @@ export const useAudioTask = () => {
           );
         }
 
-        // Start talk motion
+        // Start motion: use specific motion from config if available, otherwise random Talk
         if (LAppDefine && LAppDefine.PriorityNormal) {
-          console.log("Starting random 'Talk' motion");
-          model.startRandomMotion(
-            "Talk",
-            LAppDefine.PriorityNormal,
-          );
+          const motionMap = modelInfo?.motionIndexMap;
+          console.log(`[motion-debug] motion="${motion}", modelInfo=${JSON.stringify(modelInfo)}, motionMap=${JSON.stringify(motionMap)}`);
+          if (motion && motionMap && motionMap[motion]) {
+            const cfg = motionMap[motion];
+            if (cfg.index >= 0) {
+              console.log(`Starting specific motion: ${motion} (index ${cfg.index} in group "${cfg.group}")`);
+              model.startMotion(cfg.group, cfg.index, LAppDefine.PriorityNormal);
+            } else {
+              // index -1 = random from group (e.g. Talk)
+              console.log(`Starting random motion from group: "${cfg.group}" (motion=${motion})`);
+              model.startRandomMotion(cfg.group, LAppDefine.PriorityNormal);
+            }
+          } else {
+            console.log(`[motion-debug] No motion match: motion=${!!motion}, motionMap=${!!motionMap}, motionInMap=${motionMap ? !!motionMap[motion] : 'N/A'}`);
+            console.log("Starting random 'Talk' motion (default)");
+            model.startRandomMotion(
+              "Talk",
+              LAppDefine.PriorityNormal,
+            );
+          }
         } else {
           console.warn("LAppDefine.PriorityNormal not found - cannot start talk motion");
         }
@@ -258,6 +276,7 @@ export const useAudioTask = () => {
     }
 
     console.log(`Adding audio task ${options.displayText?.text} to queue`);
+    stopCurrentAudioAndLipSync();
     audioTaskQueue.addTask(() => handleAudioPlayback(options));
   };
 

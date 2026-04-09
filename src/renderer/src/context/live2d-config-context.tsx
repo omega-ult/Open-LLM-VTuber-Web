@@ -66,6 +66,9 @@ export interface ModelInfo {
   /** Tap motion mapping configuration */
   tapMotions?: TapMotionMap;
 
+  /** Motion index map: maps logical motion names to specific group+index */
+  motionIndexMap?: Record<string, { group: string; index: number }>;
+
   /** Enable scroll to resize */
   scrollToResize?: boolean;
 
