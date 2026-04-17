@@ -25,6 +25,8 @@ export interface AudioPayload {
   slice_length?: number;
   display_text?: DisplayText;
   actions?: Actions;
+  request_id?: string;
+  target_client_uid?: string;
 }
 
 export interface Message {
@@ -76,9 +78,8 @@ export interface MessageEvent {
   members?: string[];
   is_owner?: boolean;
   client_uid?: string;
-  forwarded?: boolean;
-  display_text?: DisplayText;
-  live2d_model?: string;
+  request_id?: string;
+  target_client_uid?: string;
   browser_view?: {
     debuggerFullscreenUrl: string;
     debuggerUrl: string;

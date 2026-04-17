@@ -60,7 +60,9 @@ interface AiStateContextType {
     (updater: (currentState: AiState) => AiState): void;
   };
   backendSynthComplete: boolean;
+  backendSynthMeta: { requestId?: string; targetClientUid?: string };
   setBackendSynthComplete: (complete: boolean) => void;
+  setBackendSynthMeta: (meta: { requestId?: string; targetClientUid?: string }) => void;
   isIdle: boolean;
   isThinkingSpeaking: boolean;
   isInterrupted: boolean;
@@ -86,6 +88,7 @@ export const AiStateContext = createContext<AiStateContextType | null>(null);
 export function AiStateProvider({ children }: { children: ReactNode }) {
   const [aiState, setAiStateInternal] = useState<AiState>(initialState);
   const [backendSynthComplete, setBackendSynthComplete] = useState(false);
+  const [backendSynthMeta, setBackendSynthMeta] = useState<{ requestId?: string; targetClientUid?: string }>({});
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   const setAiState = useCallback((newState: AiState | ((currentState: AiState) => AiState)) => {
@@ -145,11 +148,20 @@ export function AiStateProvider({ children }: { children: ReactNode }) {
       aiState,
       setAiState,
       backendSynthComplete,
+      backendSynthMeta,
       setBackendSynthComplete,
+      setBackendSynthMeta,
       ...stateChecks,
       resetState,
     }),
-    [aiState, setAiState, backendSynthComplete, stateChecks, resetState],
+    [
+      aiState,
+      setAiState,
+      backendSynthComplete,
+      backendSynthMeta,
+      stateChecks,
+      resetState,
+    ],
   );
 
   return (

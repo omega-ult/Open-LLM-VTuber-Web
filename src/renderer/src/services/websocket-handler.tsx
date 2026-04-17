@@ -27,7 +27,7 @@ function WebSocketHandler({ children }: { children: React.ReactNode }) {
   const [wsState, setWsState] = useState<string>('CLOSED');
   const [wsUrl, setWsUrl] = useLocalStorage<string>('wsUrl', defaultWsUrl);
   const [baseUrl, setBaseUrl] = useLocalStorage<string>('baseUrl', defaultBaseUrl);
-  const { aiState, setAiState, backendSynthComplete, setBackendSynthComplete } = useAiState();
+  const { aiState, setAiState, backendSynthComplete, setBackendSynthComplete, setBackendSynthMeta } = useAiState();
   const { setModelInfo } = useLive2DConfig();
   const { setSubtitleText } = useSubtitle();
   const { clearResponse, setForceNewMessage, appendHumanMessage, appendOrUpdateToolCallMessage } = useChatHistory();
@@ -165,6 +165,8 @@ function WebSocketHandler({ children }: { children: React.ReactNode }) {
             expressions: message.actions?.expressions || null,
             motion: message.actions?.motion || null,
             forwarded: message.forwarded || false,
+            requestId: message.request_id,
+            targetClientUid: message.target_client_uid,
           });
         }
         break;
@@ -245,6 +247,10 @@ function WebSocketHandler({ children }: { children: React.ReactNode }) {
         });
         break;
       case 'backend-synth-complete':
+        setBackendSynthMeta({
+          requestId: message.request_id,
+          targetClientUid: message.target_client_uid,
+        });
         setBackendSynthComplete(true);
         break;
       case 'conversation-chain-end':
@@ -290,7 +296,7 @@ function WebSocketHandler({ children }: { children: React.ReactNode }) {
       default:
         console.warn('Unknown message type:', message.type);
     }
-  }, [aiState, addAudioTask, appendHumanMessage, baseUrl, bgUrlContext, setAiState, setConfName, setConfUid, setConfigFiles, setCurrentHistoryUid, setHistoryList, setMessages, setModelInfo, setSubtitleText, startMic, stopMic, setSelfUid, setGroupMembers, setIsOwner, backendSynthComplete, setBackendSynthComplete, clearResponse, handleControlMessage, appendOrUpdateToolCallMessage, interrupt, setBrowserViewData, t]);
+  }, [aiState, addAudioTask, appendHumanMessage, baseUrl, bgUrlContext, setAiState, setConfName, setConfUid, setConfigFiles, setCurrentHistoryUid, setHistoryList, setMessages, setModelInfo, setSubtitleText, startMic, stopMic, setSelfUid, setGroupMembers, setIsOwner, backendSynthComplete, setBackendSynthComplete, setBackendSynthMeta, clearResponse, handleControlMessage, appendOrUpdateToolCallMessage, interrupt, setBrowserViewData, t]);
 
   useEffect(() => {
     wsService.connect(wsUrl);

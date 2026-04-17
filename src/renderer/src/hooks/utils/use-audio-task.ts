@@ -27,6 +27,8 @@ interface AudioTaskOptions {
   motion?: string | null
   speaker_uid?: string
   forwarded?: boolean
+  requestId?: string
+  targetClientUid?: string
 }
 
 /**
@@ -34,7 +36,13 @@ interface AudioTaskOptions {
  */
 export const useAudioTask = () => {
   const { t } = useTranslation();
-  const { aiState, backendSynthComplete, setBackendSynthComplete } = useAiState();
+  const {
+    aiState,
+    backendSynthComplete,
+    backendSynthMeta,
+    setBackendSynthComplete,
+    setBackendSynthMeta,
+  } = useAiState();
   const { setSubtitleText } = useSubtitle();
   const { appendResponse, appendAIMessage } = useChatHistory();
   const { sendMessage } = useWebSocket();
@@ -141,6 +149,24 @@ export const useAudioTask = () => {
         // Start motion: use specific motion from config if available, otherwise random Talk
         if (LAppDefine && LAppDefine.PriorityNormal) {
           const motionMap = modelInfo?.motionIndexMap;
+          const getAvailableMotionGroups = (): string[] => {
+            try {
+              const groups = model?._modelSetting?.getMotionGroupCount
+                ? Array.from(
+                    { length: model._modelSetting.getMotionGroupCount() },
+                    (_unused, index) => model._modelSetting.getMotionGroupName(index),
+                  )
+                : [];
+              return groups.filter((group: string) => group && group !== "Idle");
+            } catch (error) {
+              console.warn("[motion-debug] Failed to inspect available motion groups:", error);
+              return [];
+            }
+          };
+          const availableGroups = getAvailableMotionGroups();
+          const fallbackGroup = availableGroups.includes("Talk")
+            ? "Talk"
+            : (availableGroups[0] || "Talk");
           console.log(`[motion-debug] motion="${motion}", modelInfo=${JSON.stringify(modelInfo)}, motionMap=${JSON.stringify(motionMap)}`);
           if (motion && motionMap && motionMap[motion]) {
             const cfg = motionMap[motion];
@@ -152,11 +178,17 @@ export const useAudioTask = () => {
               console.log(`Starting random motion from group: "${cfg.group}" (motion=${motion})`);
               model.startRandomMotion(cfg.group, LAppDefine.PriorityNormal);
             }
+          } else if (motion && availableGroups.includes(motion)) {
+            console.log(`Starting direct motion group: "${motion}"`);
+            model.startRandomMotion(motion, LAppDefine.PriorityNormal);
           } else {
-            console.log(`[motion-debug] No motion match: motion=${!!motion}, motionMap=${!!motionMap}, motionInMap=${motionMap ? !!motionMap[motion] : 'N/A'}`);
-            console.log("Starting random 'Talk' motion (default)");
+            console.log(
+              `[motion-debug] No motion match: motion=${!!motion}, motionMap=${!!motionMap}, `
+              + `motionInMap=${motionMap ? !!motionMap[motion] : 'N/A'}, availableGroups=${JSON.stringify(availableGroups)}`,
+            );
+            console.log(`Starting fallback motion group: "${fallbackGroup}"`);
             model.startRandomMotion(
-              "Talk",
+              fallbackGroup,
               LAppDefine.PriorityNormal,
             );
           }
@@ -252,8 +284,13 @@ export const useAudioTask = () => {
       await audioTaskQueue.waitForCompletion();
       if (isMounted && backendSynthComplete) {
         stopCurrentAudioAndLipSync();
-        sendMessage({ type: "frontend-playback-complete" });
+        sendMessage({
+          type: "frontend-playback-complete",
+          request_id: backendSynthMeta.requestId,
+          target_client_uid: backendSynthMeta.targetClientUid,
+        });
         setBackendSynthComplete(false);
+        setBackendSynthMeta({});
       }
     };
 
@@ -262,7 +299,15 @@ export const useAudioTask = () => {
     return () => {
       isMounted = false;
     };
-  }, [backendSynthComplete, sendMessage, setBackendSynthComplete, stopCurrentAudioAndLipSync]);
+  }, [
+    backendSynthComplete,
+    backendSynthMeta.requestId,
+    backendSynthMeta.targetClientUid,
+    sendMessage,
+    setBackendSynthComplete,
+    setBackendSynthMeta,
+    stopCurrentAudioAndLipSync,
+  ]);
 
   /**
    * Add a new audio task to the queue
@@ -276,7 +321,9 @@ export const useAudioTask = () => {
     }
 
     console.log(`Adding audio task ${options.displayText?.text} to queue`);
-    stopCurrentAudioAndLipSync();
+    // Let the queue serialize playback naturally. Interruptions should only
+    // come from explicit user/system interrupt paths, not from newly arrived
+    // audio tasks.
     audioTaskQueue.addTask(() => handleAudioPlayback(options));
   };
 
