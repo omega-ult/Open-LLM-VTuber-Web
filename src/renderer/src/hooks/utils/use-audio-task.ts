@@ -196,20 +196,34 @@ export const useAudioTask = () => {
           console.warn("LAppDefine.PriorityNormal not found - cannot start talk motion");
         }
 
-        // Setup audio element
-        const audio = new Audio(audioDataUrl);
-        
-        // Register with global audio manager IMMEDIATELY after creating audio
+        // Setup audio element — create without src, attach listeners FIRST
+        // to avoid race where canplaythrough fires before listener is registered
+        const audio = new Audio();
+
+        // Register with global audio manager
         audioManager.setCurrentAudio(audio, model);
         let isFinished = false;
+        let playbackTimer: ReturnType<typeof setTimeout> | null = null;
 
         const cleanup = () => {
+          if (playbackTimer) {
+            clearTimeout(playbackTimer);
+            playbackTimer = null;
+          }
           audioManager.clearCurrentAudio(audio);
           if (!isFinished) {
             isFinished = true;
             resolve();
           }
         };
+
+        // Safety timeout: resolve after 30s no matter what
+        playbackTimer = setTimeout(() => {
+          if (!isFinished) {
+            console.warn('Audio playback timed out (30s), force resolving');
+            cleanup();
+          }
+        }, 30000);
 
         // Enhance lip sync sensitivity
         const lipSyncScale = 2.0;
@@ -261,6 +275,8 @@ export const useAudioTask = () => {
           cleanup();
         });
 
+        // Set src and load AFTER listeners are registered
+        audio.src = audioDataUrl;
         audio.load();
       } else {
         resolve();
